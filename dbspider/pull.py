@@ -14,7 +14,7 @@ history=file("log.txt", "w")
 warning=file("wrong.txt", "w")
 
 #lower = 6061536; upper = 6100000
-lower = 6014994; upper = 6050000
+lower = 999999; upper = 1000020
 
 info_dict={"定价":"price", "目录":"catalog", "出版社":"publisher_id", "作者":"writer_id", "出版年":"release",
            "ISBN":"realisbn", "title":"title", "coverlink":"coverlink", "内容简介":"about", 
@@ -161,7 +161,7 @@ class download():
         except Exception,e1:
             print e1
             try:
-                conn.close()
+                self.conn.close()
                 self.conn = MySQLdb.connect(host="shizheng.gotoftp4.com", user="shizheng", passwd="xx", db="shizheng", charset="utf8")
             except Exception,e2:
                 print e2
@@ -231,7 +231,6 @@ class download():
         if conn_count>=10:
             print "Fail after tried %d times" %(count)
             return
-
 
         if check_url(url_source):
             all_data = url_source.read().replace("<br/>", "\n")
