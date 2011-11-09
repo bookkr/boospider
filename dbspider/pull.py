@@ -1,21 +1,14 @@
 #!/usr/bin/python
 #coding=utf8
 
-import urllib
 import re
 import MySQLdb
 import time
-import sys
-import socket
+import sys, os
+import urllib2, httplib, cookielib
 from sgmllib import SGMLParser
 
 url_pre = "http://book.douban.com/subject/"
-history=file("log.txt", "w")
-warning=file("wrong.txt", "w")
-
-#lower = 6061536; upper = 6100000
-lower = 999999; upper = 1000020
-
 info_dict={"定价":"price", "目录":"catalog", "出版社":"publisher_id", "作者":"writer_id", "出版年":"release",
            "ISBN":"realisbn", "title":"title", "coverlink":"coverlink", "内容简介":"about", 
            "副标题":"subtitle", "页数":"page", "原作名":"origin_title", "译者":"translator_id", "装帧":"cover_id"}
@@ -149,12 +142,26 @@ def check_url(url_source):
         return True
     return False
 
+class urlgetter():
+    def __init__(self):
+        self.cookie_jar = cookielib.CookieJar()
+        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cookie_jar))
+        
+    def openurl(self, url):
+        request = urllib2.Request(url)
+        request.add_header("User-Agent", "Mozilla/5.0 (X11; Linux i686; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
+        request.add_header("Referer", url)
+        
+        return self.opener.open(request, None, 20)
+
 class download():
     def __init__(self):
-        self.conn = MySQLdb.connect(host="shizheng.gotoftp4.com", user="shizheng", passwd="xx", db="shizheng", charset="utf8")
+        self.passwd = raw_input("Input your database password:")
+        self.conn = MySQLdb.connect(host="shizheng.gotoftp4.com", user="shizheng", passwd=self.passwd, db="shizheng", charset="utf8")
         self.url_id = 0
         self.cnt=0
-        
+        self.downer = urlgetter()
+
     def update_data(self, getter):
         try:
             self.conn.ping()
@@ -162,7 +169,8 @@ class download():
             print e1
             try:
                 self.conn.close()
-                self.conn = MySQLdb.connect(host="shizheng.gotoftp4.com", user="shizheng", passwd="xx", db="shizheng", charset="utf8")
+                self.conn = MySQLdb.connect(host="shizheng.gotoftp4.com", user="shizheng", passwd=self.passwd, 
+                                            db="shizheng", charset="utf8")
             except Exception,e2:
                 print e2
                 sys.exit(0)
@@ -219,17 +227,20 @@ class download():
     def fetch_data(self):
 
         conn_count = 0
+
         while conn_count<10:
             try:
-                url_source = urllib.urlopen( url_pre+str(self.url_id) )
+                url_source = self.downer.openurl( url_pre+str(self.url_id) )
                 break
             except Exception,e:
                 print e
+                if e.msg=="Forbidden":
+                    sys.exit(0)
                 print "download fail.Try again"
                 conn_count=conn_count+1
 
         if conn_count>=10:
-            print "Fail after tried %d times" %(count)
+            print "Fail after tried %d times" %(conn_count)
             return
 
         if check_url(url_source):
@@ -259,6 +270,7 @@ class download():
 
     def run(self):
         global lower, upper
+        global history, warning
 
         while True:
             if lower>=upper:
@@ -280,8 +292,10 @@ class download():
                 try:
                     self.conn.commit()
                     self.cnt=0
+                    history.seek(0, os.SEEK_SET)
                     history.write(str(self.url_id)+"\n")
                     history.flush()
+
                 except Exception,e:
                     print e
             time.sleep(0.5)
@@ -291,8 +305,37 @@ class download():
         history.write(str(self.url_id)+"\n")
         history.close()
 
+def initial():
+    global lower
+    global history, warning
+
+    if os.path.exists("log.txt"):
+        history = open("log.txt", "r+")
+        line = history.readline()
+        if len(line)>1:
+            if lower<int(line[0:-1]):
+                lower = int(line[0:-1])+1
+                print "use value in log.txt %d"%(lower-1)
+            newfilename = "log"+time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))+".txt"
+            f = open(newfilename, "w")
+            f.write(str(lower-1)+"\n")
+            f.close()
+        else:
+            print "illegal data in log.txt. Use defalut value."
+
+    else:
+        print "log.txt does not exist. Use default value."
+        history = open("log.txt", "w")
+    
+    history.seek(0, os.SEEK_SET)
+    wrong = open("wrong.txt", "a")
+    
 if __name__=="__main__":
-    socket.setdefaulttimeout(20)
+    lower = 6062780; upper = 6100000
+    history = None
+    waring = None
+
+    initial()
     d = download()
     d.run()
 
