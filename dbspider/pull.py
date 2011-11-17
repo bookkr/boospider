@@ -232,10 +232,12 @@ class download():
             try:
                 url_source = self.downer.openurl( url_pre+str(self.url_id) )
                 break
-            except Exception,e:
+            except urllib2.HTTPError,e:
                 print e
                 if e.msg=="Forbidden":
                     sys.exit(0)
+            except Exception,e:
+                print e
                 print "download fail.Try again"
                 conn_count=conn_count+1
 
@@ -328,7 +330,7 @@ def initial():
         history = open("log.txt", "w")
     
     history.seek(0, os.SEEK_SET)
-    wrong = open("wrong.txt", "a")
+    warning = open("wrong.txt", "a")
     
 if __name__=="__main__":
     lower = 6062780; upper = 6100000
