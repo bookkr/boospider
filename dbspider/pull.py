@@ -130,12 +130,11 @@ class DataGetter(SGMLParser):
         self.value=""
         self.state = 0
 
-
 def check_url(url_source):
     status_code = url_source.getcode()
     if status_code == 403:
         print "Connection forbidden"
-        sys.exit(0)
+        return False
     if status_code/100!=2:
         return False
     if re.search( 'book', url_source.geturl() ):
@@ -161,6 +160,7 @@ class download():
         self.url_id = 0
         self.cnt=0
         self.downer = urlgetter()
+        self.http_count = 0
 
     def update_data(self, getter):
         try:
@@ -226,24 +226,27 @@ class download():
 
     def fetch_data(self):
 
-        conn_count = 0
+        httpErrorCount = 0
+        otherErrorCount = 0
 
-        while conn_count<10:
+        while httpErrorCount<10 and otherErrorCount<10:
             try:
                 url_source = self.downer.openurl( url_pre+str(self.url_id) )
                 break
             except urllib2.HTTPError,e:
                 print e
-                if e.msg=="Forbidden":
-                    sys.exit(0)
+                if e.getcode()==403:
+                    httpErrorCount = httpErrorCount+1
+                elif e.getcode()==404:
+                    return 3
             except Exception,e:
                 print e
-                print "download fail.Try again"
-                conn_count=conn_count+1
+                otherErrorCount=otherErrorCount+1
+            print "Download Error. Try Again."
 
-        if conn_count>=10:
-            print "Fail after tried %d times" %(conn_count)
-            return
+        if httpErrorCount>=10 or otherErrorCount>=10:
+            print "Fail after tried %d times" %(httpErrorCount+otherErrorCount)
+            return (httpErrorCount>=10) and 1 or 2
 
         if check_url(url_source):
             all_data = url_source.read().replace("<br/>", "\n")
@@ -269,6 +272,8 @@ class download():
                     getter.information["目录"]=v[0:res.start()]
 
             self.update_data(getter)
+            return 0
+        return -1
 
     def run(self):
         global lower, upper
@@ -284,7 +289,15 @@ class download():
                 print self.url_id
 
                 try:
-                    self.fetch_data()
+                    answer = self.fetch_data()
+                    if answer == 1:
+                        self.http_count = self.http_count + 1
+                        if self.http_count > 5:
+                            print "Connection is forbidden."
+                            sys.exit(0)
+                    else:
+                        self.http_count = 0
+
                 except Exception,e:
                     print e
                     warning.write(str(self.url_id)+"\n")
@@ -333,7 +346,7 @@ def initial():
     warning = open("wrong.txt", "a")
     
 if __name__=="__main__":
-    lower = 6062780; upper = 6100000
+    lower = 6078900; upper = 6100000
     history = None
     waring = None
 
