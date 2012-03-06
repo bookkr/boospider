@@ -325,16 +325,12 @@ def initial():
     global history, warning
 
     if os.path.exists("log.txt"):
-        history = open("log.txt", "r+")
+        history = open("log.txt", "a+")
         line = history.readline()
         if len(line)>1:
             if lower<int(line[0:-1]):
                 lower = int(line[0:-1])+1
                 print "use value in log.txt %d"%(lower-1)
-            newfilename = "log"+time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))+".txt"
-            f = open(newfilename, "w")
-            f.write(str(lower-1)+"\n")
-            f.close()
         else:
             print "illegal data in log.txt. Use defalut value."
 
@@ -346,7 +342,7 @@ def initial():
     warning = open("wrong.txt", "a")
     
 if __name__=="__main__":
-    lower = 6078900; upper = 6100000
+    lower = 6600000; upper = 6700000
     history = None
     waring = None
 
